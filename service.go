@@ -6,10 +6,11 @@ import (
 	"os"
 	"os/exec"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/Masterminds/semver/v3"
-	"github.com/go-co-op/gocron"
+	"github.com/robfig/cron/v3"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 
@@ -21,7 +22,7 @@ const workingdir = "./"
 
 type Service struct {
 	githubRepo *github.GithubRepo
-	scheduler  *gocron.Scheduler
+	scheduler  *cron.Cron
 
 	mutex             sync.Mutex
 	cmd               *exec.Cmd
@@ -32,22 +33,9 @@ type Service struct {
 }
 
 func NewService(githubRepo *github.GithubRepo) (*Service, error) {
-	location, err := time.LoadLocation("UTC")
-	if err != nil {
-		return nil, err
-	}
-
-	s := gocron.NewScheduler(location)
-
-	if viper.IsSet(constants.UPDATE_CRON) {
-		s.Cron(viper.GetString(constants.UPDATE_CRON))
-	} else {
-		s.Every(1).Day().At("02:00")
-	}
-
 	return &Service{
 		githubRepo: githubRepo,
-		scheduler:  s,
+		scheduler:  cron.New(),
 	}, nil
 }
 
@@ -74,18 +62,32 @@ func (s *Service) Run(ctx context.Context) error {
 		}
 	}()
 
-	s.scheduler.Do(func() {
+	s.scheduler.AddFunc(s.getCronSpec(), func() {
 		err := s.cliVersionCheck(ctx)
 		if err != nil {
 			logrus.Error(err)
 		}
+
+		s.logNextUpdateCheck()
 	})
 
-	s.scheduler.StartAsync()
+	s.scheduler.Start()
 
-	<-ctx.Done()
+	s.logNextUpdateCheck()
+
+	s.waitGroup.Wait()
 
 	return nil
+}
+
+func (s *Service) getCronSpec() string {
+	if viper.IsSet(constants.UPDATE_CRON) {
+		cron := viper.GetString(constants.UPDATE_CRON)
+		return cron
+	} else {
+		logrus.Info("Updating cron every day at 2:00")
+		return "0 2 * * *"
+	}
 }
 
 func (s *Service) runRaitoCli(ctx context.Context) error {
@@ -102,24 +104,18 @@ func (s *Service) runRaitoCli(ctx context.Context) error {
 				return errors.New("no execution location")
 			}
 
-			s.cmd = exec.Command(execLocation, os.Args[1:]...)
+			s.cmd = exec.CommandContext(ctx, execLocation, os.Args[1:]...)
 			s.cmd.Stdout = os.Stdout
 			s.cmd.Stderr = os.Stderr
-			s.cmd.Stdin = &NullReader{}
+			s.cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 
 			logrus.Infof("Executing CLI version %s with command: %s", s.version.String(), s.cmd.String())
 
 			s.mutex.Unlock()
 
-			err := s.cmd.Start()
-			if err != nil {
-				return err
-			}
+			s.cmd.Run()
 
-			err = s.cmd.Wait()
-			if err != nil {
-				return err
-			}
+			logrus.Info("Finished executing CLI")
 		}
 	}
 }
@@ -141,10 +137,12 @@ func (s *Service) cliVersionCheck(ctx context.Context) error {
 	}
 
 	if latestVersion.GreaterThan(s.version) {
-		logrus.Info("Found new CLI version %s", latestVersion.String())
+		logrus.Infof("Found new CLI version %s", latestVersion.String())
 
 		version, location, err := s.githubRepo.InstallLatestRelease(ctx, workingdir)
 		if err != nil {
+			logrus.Errorf("Failed to install latest release: %v", err)
+
 			return err
 		}
 
@@ -152,14 +150,22 @@ func (s *Service) cliVersionCheck(ctx context.Context) error {
 		s.version = version
 		s.executionLocation = location
 
-		err = s.cmd.Process.Kill()
+		logrus.Debug("Stop previous runner")
+
+		err = syscall.Kill(-s.cmd.Process.Pid, syscall.SIGKILL)
 		if err != nil {
+			logrus.Errorf("%v", err)
 			return err
 		}
 
-		err = os.Remove(previousLocation)
-		if err != nil {
-			return err
+		logrus.Debug("process is stopped")
+
+		logrus.Debug("Remove previous runner")
+		if previousLocation != location {
+			err = os.Remove(previousLocation)
+			if err != nil {
+				return err
+			}
 		}
 
 	} else {
@@ -169,9 +175,14 @@ func (s *Service) cliVersionCheck(ctx context.Context) error {
 	return nil
 }
 
-type NullReader struct {
-}
+func (s *Service) logNextUpdateCheck() {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
 
-func (r *NullReader) Read(p []byte) (n int, err error) {
-	return 0, nil
+	if len(s.scheduler.Entries()) > 0 {
+		t := s.scheduler.Entries()[0].Next
+		logrus.Infof("Next update check at %s", t.Format(time.RFC822))
+	} else {
+		logrus.Info("No jobs scheduled")
+	}
 }

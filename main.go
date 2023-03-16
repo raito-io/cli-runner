@@ -12,9 +12,9 @@ import (
 func main() {
 	ctx := context.Background()
 
-	viper.BindEnv(constants.GITHUB_TOKEN, constants.UPDATE_CRON)
+	viper.BindEnv(constants.UPDATE_CRON)
 
-	githubRepo := github.NewGithubRepo(ctx)
+	githubRepo := github.NewGithubRepo()
 
 	service, err := NewService(githubRepo)
 	if err != nil {

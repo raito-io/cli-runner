@@ -15,10 +15,7 @@ import (
 	"github.com/Masterminds/semver/v3"
 	"github.com/google/go-github/v50/github"
 	"github.com/hashicorp/go-retryablehttp"
-	"github.com/spf13/viper"
-	"golang.org/x/oauth2"
-
-	"github.com/raito-io/raito-cli-container/constants"
+	"github.com/sirupsen/logrus"
 )
 
 const RAITO_CLI_REPOSITORY_OWNER = "raito-io"
@@ -30,16 +27,9 @@ type GithubRepo struct {
 	releaseSuffix string
 }
 
-func NewGithubRepo(ctx context.Context) *GithubRepo {
+func NewGithubRepo() *GithubRepo {
 	httpClient := retryablehttp.NewClient()
-
-	if viper.IsSet(constants.GITHUB_TOKEN) {
-		ts := oauth2.StaticTokenSource(
-			&oauth2.Token{AccessToken: viper.GetString(constants.GITHUB_TOKEN)},
-		)
-
-		httpClient.HTTPClient = oauth2.NewClient(ctx, ts)
-	}
+	httpClient.Logger = logrus.StandardLogger()
 
 	return &GithubRepo{
 		httpClient:    httpClient,

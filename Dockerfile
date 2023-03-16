@@ -18,6 +18,11 @@ FROM alpine:3.17.2 as deploy
 
 WORKDIR /
 
+RUN mkdir -p /config
+
+ENV CLI_FREQUENCY=60
+ENV RAITO_CLI_UPDATE_CRON="0 2 * * *"
+
 COPY --from=build /raito-cli-runner /raito-cli-runner
 
-ENTRYPOINT ["/raito-cli-runner"]
+ENTRYPOINT /raito-cli-runner run -f $CLI_FREQUENCY --config-file /config/raito.yml
