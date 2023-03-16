@@ -1,0 +1,4 @@
+package constants
+
+const GITHUB_TOKEN = "RAITO_IO_GITHUB_TOKEN"
+const UPDATE_CRON = "RAITO_CLI_UPDATE_CRON"
