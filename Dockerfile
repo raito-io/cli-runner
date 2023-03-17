@@ -16,10 +16,13 @@ RUN go build -o /raito-cli-runner
 ## Deploy
 FROM alpine:3.17.2 as deploy
 
+RUN apk add --no-cache tzdata
+
 WORKDIR /
 
 RUN mkdir -p /config
 
+ENV TZ=Etc/UTC
 ENV CLI_FREQUENCY=60
 ENV RAITO_CLI_UPDATE_CRON="0 2 * * *"
 
