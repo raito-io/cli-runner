@@ -113,9 +113,28 @@ func (s *Service) runRaitoCli(ctx context.Context) error {
 
 			s.mutex.Unlock()
 
-			s.cmd.Run()
+			exitError := s.cmd.Run()
+			if exitError != nil {
+				logrus.Debugf("error while executing CLI: %v", exitError)
+
+				eError := &exec.ExitError{}
+				if errors.As(exitError, &eError) {
+					ws := eError.ProcessState.Sys().(syscall.WaitStatus)
+					if ws.Signaled() && ws.Signal() == syscall.SIGKILL {
+						logrus.Info("Restart RAITO CLI")
+
+						continue
+					}
+				}
+
+				logrus.Errorf("error while executing CLI: %v", exitError)
+
+				return exitError
+			}
 
 			logrus.Info("Finished executing CLI")
+
+			return nil
 		}
 	}
 }
