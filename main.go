@@ -12,7 +12,10 @@ import (
 func main() {
 	ctx := context.Background()
 
-	viper.BindEnv(constants.UPDATE_CRON)
+	err := viper.BindEnv(constants.UPDATE_CRON)
+	if err != nil {
+		panic(err)
+	}
 
 	githubRepo := github.NewGithubRepo()
 

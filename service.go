@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"os/exec"
 	"sync"
@@ -52,8 +53,8 @@ func (s *Service) Run(ctx context.Context) error {
 	cancelCtx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
+	s.waitGroup.Add(1)
 	go func() {
-		s.waitGroup.Add(1)
 		defer s.waitGroup.Done()
 
 		runErr := s.runRaitoCli(cancelCtx)
@@ -62,7 +63,7 @@ func (s *Service) Run(ctx context.Context) error {
 		}
 	}()
 
-	s.scheduler.AddFunc(s.getCronSpec(), func() {
+	_, err = s.scheduler.AddFunc(s.getCronSpec(), func() {
 		err := s.cliVersionCheck(ctx)
 		if err != nil {
 			logrus.Error(err)
@@ -70,6 +71,9 @@ func (s *Service) Run(ctx context.Context) error {
 
 		s.logNextUpdateCheck()
 	})
+	if err != nil {
+		return fmt.Errorf("schedule update: %w", err)
+	}
 
 	s.scheduler.Start()
 
