@@ -2,7 +2,7 @@
 GO := go
 
 build:
-	go build main.go
+	go build .
 
 test:
 	go test ./...
