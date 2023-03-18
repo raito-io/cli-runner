@@ -25,8 +25,5 @@ jobs:
         uses: docker/build-push-action@v4
         with:
           context: .
-          platforms: linux/amd64,linux/arm64
           push: false
-          tags:
-            - raito-cli-runner:latest
-            - raito-cli-runner:${{github.ref_name}}
+          tags: raito-cli-runner:latest,raito-cli-runner:${{github.ref_name}}
