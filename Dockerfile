@@ -20,6 +20,7 @@ LABEL org.opencontainers.image.source=https://github.com/raito-io/cli-runner
 LABEL org.opencontainers.image.description="RAITO CLI runner"
 LABEL org.opencontainers.image.licenses="Apache-2.0"
 LABEL org.opencontainers.image.url="https://raito.io"
+LABEL org.opencontainers.image.vendor=Raito
 
 RUN apk add --no-cache tzdata
 
