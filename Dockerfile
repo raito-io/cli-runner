@@ -14,7 +14,12 @@ ADD github /app/github
 RUN go build -o /raito-cli-runner
 
 ## Deploy
-FROM alpine:3.17.2 as deploy
+FROM alpine:3 as deploy
+
+LABEL org.opencontainers.image.source=https://github.com/raito-io/cli-runner
+LABEL org.opencontainers.image.description="RAITO CLI runner"
+LABEL org.opencontainers.image.licenses="Apache-2.0"
+LABEL org.opencontainers.image.url="https://raito.io"
 
 RUN apk add --no-cache tzdata
 
