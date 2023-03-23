@@ -30,4 +30,4 @@ ENV RAITO_CLI_UPDATE_CRON="0 2 * * *"
 
 COPY --from=build /raito-cli-runner /raito-cli-runner
 
-ENTRYPOINT /raito-cli-runner run -f $CLI_FREQUENCY --config-file /config/raito.yml
+ENTRYPOINT /raito-cli-runner run -f $CLI_FREQUENCY --config-file /config/raito.yml --log-output
