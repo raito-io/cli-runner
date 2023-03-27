@@ -6,7 +6,7 @@
 </h1>
 
 <h4 align="center">
-  Extensible CLI to easily manage the access controls for your data sources.
+  Raito CLI Docker Image
 </h4>
 
 <p align="center">
@@ -16,18 +16,18 @@
 <hr/>
 
 # Introduction
-This is a container that will run the RAITO CLI and keep it up to date.
+This Docker image can be used to run the Raito CLI. It automatically keeps it up to date by regularly checking for update and restarting it when an update is available.
 
 # How to run the RAITO CLI container?
-A docker image can be used to run the RAITO CLI runner. The image to use is `ghcr.io/raito-io/raito-cli-runner`. 
-The image expect RAITO configuration file mounted to `/config/raito.yml`.
+The Docker image to use is `ghcr.io/raito-io/raito-cli-runner`. 
+The image expects a Raito configuration file mounted to `/config/raito.yml`.
 
 You can eaily start the container using the following command
 ```bash
 docker run --mount type=bind,source="<Your local Raito configuration file>",target="/config/raito.yml",readonly ghcr.io/raito-io/raito-cli-runner:latest
 ```
 
-Additional environment variables, that could be defined in your Raito configuration file, can be mounted by using the existing docker environment arguments `--env` and `--env-file`.
+Additional environment variables, that could be referred in your Raito configuration file, can be mounted by using the existing docker environment arguments `--env` and `--env-file`.
 
 The following environment variables are used in the default entrypoint:
 
@@ -35,11 +35,11 @@ The following environment variables are used in the default entrypoint:
 |-------------------------|------------------------------------------------------------------------------------------|-----------------|
 | `TZ`                    | Timezone used by the container                                                           | Etc/UTC         |
 | `CLI_FREQUENCY`         | The frequency used to do the sync (in minutes).                                          | 60              |
-| `RAITO_CLI_UPDATE_CRON` | Cronjob definition when the container need to check if a newer CLI version is available. | `0 2 * * *`     |
+| `RAITO_CLI_UPDATE_CRON` | The cronjob definition for when the container needs to check if a newer CLI version is available. | `0 2 * * *`     |
 
 The default entrypoint of the container is defined as
 ```dockerfile
 ENTRYPOINT /raito-cli-runner run -f $CLI_FREQUENCY --config-file /config/raito.yml --log-output
 ```
 
-You can override the default entrypoint by defining it `--entrypoint` option when execution `docker run`
+You can override the default entrypoint by using the `--entrypoint` option when execution `docker run`
