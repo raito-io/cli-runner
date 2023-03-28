@@ -35,6 +35,7 @@ jobs:
         with:
           images: |
             ghcr.io/raito-io/raito-cli-runner
+          flavor: latest=true
           tags: |
             type=ref,event=branch
             type=ref,event=pr
@@ -54,4 +55,4 @@ jobs:
           push: true
           platforms: linux/amd64,linux/arm64,linux/386
           tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}-a v
+          labels: ${{ steps.meta.outputs.labels }}
