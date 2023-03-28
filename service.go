@@ -46,8 +46,6 @@ func NewService(githubRepo *github.GithubRepo) (*Service, func(), error) {
 	stdoutFileName := GetEnvString(constants.ENV_STDOUT_FILE, os.Stdout.Name())
 	stderrFileName := GetEnvString(constants.ENV_STDERR_FILE, os.Stderr.Name())
 
-	var stderrFile *os.File
-
 	var cleanup []func() error
 
 	stdoutFile, stdoutFileCleanup, err := createOutputFile(stdoutFileName)
