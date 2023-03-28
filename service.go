@@ -21,6 +21,8 @@ import (
 
 const workingdir = "./"
 
+var signal = syscall.SIGUSR1
+
 type Service struct {
 	githubRepo *github.GithubRepo
 	scheduler  *cron.Cron
@@ -31,12 +33,17 @@ type Service struct {
 	executionLocation string
 
 	waitGroup sync.WaitGroup
+
+	userSignal chan struct{}
+	terminated chan struct{}
 }
 
 func NewService(githubRepo *github.GithubRepo) (*Service, error) {
 	return &Service{
 		githubRepo: githubRepo,
 		scheduler:  cron.New(),
+		userSignal: make(chan struct{}),
+		terminated: make(chan struct{}, 1),
 	}, nil
 }
 
@@ -81,6 +88,9 @@ func (s *Service) Run(ctx context.Context) error {
 
 	s.waitGroup.Wait()
 
+	close(s.userSignal)
+	close(s.terminated)
+
 	return nil
 }
 
@@ -124,14 +134,18 @@ func (s *Service) runRaitoCli(ctx context.Context) error {
 				eError := &exec.ExitError{}
 				if errors.As(exitError, &eError) {
 					ws := eError.ProcessState.Sys().(syscall.WaitStatus)
-					if ws.Signaled() && ws.Signal() == syscall.SIGKILL {
+					if ws.ExitStatus() == int(signal) {
 						logrus.Info("Restart RAITO CLI")
+
+						s.userSignal <- struct{}{}
 
 						continue
 					}
 				}
 
 				logrus.Errorf("error while executing CLI: %v", exitError)
+
+				s.terminated <- struct{}{}
 
 				return exitError
 			}
@@ -175,13 +189,21 @@ func (s *Service) cliVersionCheck(ctx context.Context) error {
 
 		logrus.Debug("Stop previous runner")
 
-		err = syscall.Kill(-s.cmd.Process.Pid, syscall.SIGKILL)
+		err = syscall.Kill(-s.cmd.Process.Pid, signal)
 		if err != nil {
 			logrus.Errorf("%v", err)
 			return err
 		}
 
-		logrus.Debug("process is stopped")
+		logrus.Debug("Wait for process to stop...")
+
+		select {
+		case <-s.terminated:
+			return nil
+		case <-s.userSignal:
+		}
+
+		logrus.Debug("Process is stopped")
 
 		logrus.Debug("Remove previous runner")
 		if previousLocation != location {
