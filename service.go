@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"sync"
@@ -32,19 +33,53 @@ type Service struct {
 	version           *semver.Version
 	executionLocation string
 
+	stdoutWriter io.Writer
+	stderrWriter io.Writer
+
 	waitGroup sync.WaitGroup
 
 	userSignal chan struct{}
 	terminated chan struct{}
 }
 
-func NewService(githubRepo *github.GithubRepo) (*Service, error) {
+func NewService(githubRepo *github.GithubRepo) (*Service, func(), error) {
+	stdoutFileName := GetEnvString(constants.ENV_STDOUT_FILE, os.Stdout.Name())
+	stderrFileName := GetEnvString(constants.ENV_STDERR_FILE, os.Stderr.Name())
+
+	var cleanup []func() error
+
+	stdoutFile, stdoutFileCleanup, err := createOutputFile(stdoutFileName)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	cleanup = append(cleanup, stdoutFileCleanup)
+
+	stderrFile, stderrFileCleanup, err := createOutputFile(stderrFileName)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	cleanup = append(cleanup, stderrFileCleanup)
+
 	return &Service{
-		githubRepo: githubRepo,
-		scheduler:  cron.New(),
-		userSignal: make(chan struct{}),
-		terminated: make(chan struct{}, 1),
-	}, nil
+			githubRepo: githubRepo,
+			scheduler:  cron.New(),
+
+			userSignal: make(chan struct{}),
+			terminated: make(chan struct{}, 1),
+
+			stdoutWriter: stdoutFile,
+			stderrWriter: stderrFile,
+		}, func() {
+			for _, f := range cleanup {
+				err := f()
+
+				if err != nil {
+					logrus.Errorf("failed to close file: %v", err)
+				}
+			}
+		}, nil
 }
 
 func (s *Service) Run(ctx context.Context) error {
@@ -88,6 +123,7 @@ func (s *Service) Run(ctx context.Context) error {
 
 	s.waitGroup.Wait()
 
+	ctx = s.scheduler.Stop()
 	close(s.userSignal)
 	close(s.terminated)
 
@@ -95,8 +131,8 @@ func (s *Service) Run(ctx context.Context) error {
 }
 
 func (s *Service) getCronSpec() string {
-	if viper.IsSet(constants.UPDATE_CRON) {
-		cron := viper.GetString(constants.UPDATE_CRON)
+	if viper.IsSet(constants.ENV_UPDATE_CRON) {
+		cron := viper.GetString(constants.ENV_UPDATE_CRON)
 		return cron
 	} else {
 		logrus.Info("Updating cron every day at 2:00")
@@ -119,8 +155,8 @@ func (s *Service) runRaitoCli(ctx context.Context) error {
 			}
 
 			s.cmd = exec.CommandContext(ctx, execLocation, os.Args[1:]...)
-			s.cmd.Stdout = os.Stdout
-			s.cmd.Stderr = os.Stderr
+			s.cmd.Stdout = s.stdoutWriter
+			s.cmd.Stderr = s.stderrWriter
 			s.cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 
 			logrus.Infof("Executing CLI version %s with command: %s", s.version.String(), s.cmd.String())
@@ -189,18 +225,9 @@ func (s *Service) cliVersionCheck(ctx context.Context) error {
 
 		logrus.Debug("Stop previous runner")
 
-		err = syscall.Kill(-s.cmd.Process.Pid, signal)
-		if err != nil {
-			logrus.Errorf("%v", err)
+		err, done := s.stopCLI()
+		if done {
 			return err
-		}
-
-		logrus.Debug("Wait for process to stop...")
-
-		select {
-		case <-s.terminated:
-			return nil
-		case <-s.userSignal:
 		}
 
 		logrus.Debug("Process is stopped")
@@ -220,6 +247,24 @@ func (s *Service) cliVersionCheck(ctx context.Context) error {
 	return nil
 }
 
+func (s *Service) stopCLI() (error, bool) {
+	err := syscall.Kill(-s.cmd.Process.Pid, signal)
+	if err != nil {
+		logrus.Errorf("%v", err)
+		return err, true
+	}
+
+	logrus.Debug("Wait for process to stop...")
+
+	select {
+	case <-s.terminated:
+		return nil, true
+	case <-s.userSignal:
+	}
+
+	return nil, false
+}
+
 func (s *Service) logNextUpdateCheck() {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
@@ -230,4 +275,30 @@ func (s *Service) logNextUpdateCheck() {
 	} else {
 		logrus.Info("No jobs scheduled")
 	}
+}
+
+func GetEnvString(key, defaultVal string) string {
+	v := os.Getenv(key)
+	if v == "" {
+		return defaultVal
+	}
+
+	return v
+}
+
+func createOutputFile(filename string) (*os.File, func() error, error) {
+	if filename == os.Stdout.Name() {
+		return os.Stdout, func() error { return nil }, nil
+	} else if filename == os.Stderr.Name() {
+		return os.Stderr, func() error { return nil }, nil
+	}
+
+	outputFile, err := os.OpenFile(filename, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0600)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return outputFile, func() error {
+		return outputFile.Close()
+	}, nil
 }
