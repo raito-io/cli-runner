@@ -27,6 +27,8 @@ RUN mkdir -p /config
 ENV TZ=Etc/UTC
 ENV CLI_FREQUENCY=60
 ENV RAITO_CLI_UPDATE_CRON="0 2 * * *"
+ENV RAITO_CLI_CONTAINER_STDOUT_FILE="/dev/stdout"
+ENV RAITO_CLI_CONTAINER_STDERR_FILE="/dev/stderr"
 
 COPY --from=build /raito-cli-runner /raito-cli-runner
 
