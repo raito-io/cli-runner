@@ -34,11 +34,6 @@ COPY --from=build /raito-cli-runner /raito-cli-runner
 
 ENTRYPOINT /raito-cli-runner run -f $CLI_FREQUENCY --config-file /config/raito.yml --log-output
 
-COPY *.go ./
-ADD constants /app/constants
-ADD github /app/github
-
-RUN go build -o /raito-cli-runner
 
 ## Deploy-amazon
 FROM amazonlinux:2023 as amazonlinux
