@@ -40,7 +40,7 @@ FROM amazonlinux:2023 as amazonlinux
 
 LABEL org.opencontainers.image.base.name="amazonlinux:2023"
 
-RUN yum install tzdata
+RUN yum -y install tzdata jq
 
 WORKDIR /
 
