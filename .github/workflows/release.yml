@@ -29,13 +29,13 @@ jobs:
           username: ${{ secrets.CI_SECRETS_TOKEN_USER }}
           password: ${{ secrets.CI_SECRETS_TOKEN }}
 
-      - name: Docker meta
-        id: meta
+      - name: Docker meta for deploy
+        id: meta-deploy
         uses: docker/metadata-action@v4
         with:
           images: |
             ghcr.io/raito-io/raito-cli-runner
-          flavor: latest=true
+          flavor: latest=auto
           tags: |
             type=ref,event=branch
             type=ref,event=pr
@@ -48,12 +48,45 @@ jobs:
             org.opencontainers.image.source=https://github.com/raito-io/cli-runner
 
 
+      - name: Docker meta for amazon
+        id: meta-amazon
+        uses: docker/metadata-action@v4
+        with:
+          images: |
+            ghcr.io/raito-io/raito-cli-runner
+          flavor: |
+            latest=auto
+            suffix=-amazon,onlatest=true
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+          labels: |
+            org.opencontainers.image.description=RAITO CLI runner
+            org.opencontainers.image.licenses=Apache-2.0
+            org.opencontainers.image.vendor=Raito
+            org.opencontainers.image.documentation=https://docs.raito.io/
+            org.opencontainers.image.source=https://github.com/raito-io/cli-runner
+
       - name: Build and push
         uses: docker/build-push-action@v4
         with:
           context: .
+          target: deploy
           push: true
           platforms: linux/amd64,linux/arm64,linux/386
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
+          tags: ${{ steps.meta-deploy.outputs.tags }}
+          labels: ${{ steps.meta-deploy.outputs.labels }}
           provenance: false
+
+      - name: Build and push
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          target: amazon
+          push: true
+          platforms: linux/amd64,linux/arm64
+          tags: ${{ steps.meta-amazon.outputs.tags }}
+          labels: ${{ steps.meta-amazon.outputs.labels }}
+          provenance: false
+
