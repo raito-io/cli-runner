@@ -36,7 +36,9 @@ type Service struct {
 	stdoutWriter io.Writer
 	stderrWriter io.Writer
 
-	waitGroup sync.WaitGroup
+	waitGroup      sync.WaitGroup
+	exitError      error
+	exitErrorMutex sync.Mutex
 
 	userSignal chan struct{}
 	terminated chan struct{}
@@ -83,6 +85,9 @@ func NewService(githubRepo *github.GithubRepo) (*Service, func(), error) {
 }
 
 func (s *Service) Run(ctx context.Context) error {
+	defer close(s.userSignal)
+	defer close(s.terminated)
+
 	// Start with downloading the latest release
 	version, location, err := s.githubRepo.InstallLatestRelease(ctx, workingdir)
 	if err != nil {
@@ -102,6 +107,11 @@ func (s *Service) Run(ctx context.Context) error {
 		runErr := s.runRaitoCli(cancelCtx)
 		if runErr != nil {
 			logrus.Errorf("error while running Raito CLI: %v", runErr)
+
+			s.exitErrorMutex.Lock()
+			defer s.exitErrorMutex.Unlock()
+
+			s.exitError = runErr
 		}
 	}()
 
@@ -118,16 +128,16 @@ func (s *Service) Run(ctx context.Context) error {
 	}
 
 	s.scheduler.Start()
+	defer func() { ctx = s.scheduler.Stop() }()
 
 	s.logNextUpdateCheck()
 
 	s.waitGroup.Wait()
 
-	ctx = s.scheduler.Stop()
-	close(s.userSignal)
-	close(s.terminated)
+	s.exitErrorMutex.Lock()
+	defer s.exitErrorMutex.Unlock()
 
-	return nil
+	return s.exitError
 }
 
 func (s *Service) getCronSpec() string {
@@ -179,7 +189,7 @@ func (s *Service) runRaitoCli(ctx context.Context) error {
 					}
 				}
 
-				logrus.Errorf("error while executing CLI: %v", exitError)
+				logrus.Errorf("error while executing CLI: %s", exitError.Error())
 
 				s.terminated <- struct{}{}
 
