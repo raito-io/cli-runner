@@ -2,7 +2,11 @@ package main
 
 import (
 	"context"
+	"errors"
+	"os"
+	"os/exec"
 
+	"github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 
 	"github.com/raito-io/raito-cli-container/constants"
@@ -28,6 +32,13 @@ func main() {
 
 	err = service.Run(ctx)
 	if err != nil {
-		panic(err)
+		logrus.Errorf("execution error: %s", err.Error())
+		eError := &exec.ExitError{}
+		if errors.As(err, &eError) {
+			exitCode := eError.ExitCode()
+			os.Exit(exitCode)
+		} else {
+			panic(err)
+		}
 	}
 }
