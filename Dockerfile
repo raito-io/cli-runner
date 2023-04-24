@@ -54,4 +54,5 @@ ENV RAITO_CLI_CONTAINER_STDERR_FILE="/dev/stderr"
 
 COPY --from=build /raito-cli-runner /raito-cli-runner
 
-ENTRYPOINT /raito-cli-runner run -f $CLI_FREQUENCY --config-file /config/raito.yml --log-output
+ENTRYPOINT []
+CMD /raito-cli-runner run -f $CLI_FREQUENCY --config-file /config/raito.yml --log-output
