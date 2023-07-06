@@ -29,19 +29,6 @@ jobs:
           username: ${{ secrets.CI_SECRETS_TOKEN_USER }}
           password: ${{ secrets.CI_SECRETS_TOKEN }}
 
-      - name: Assume role using OIDC
-        uses: aws-actions/configure-aws-credentials@v1
-        with:
-          role-to-assume: ${{ secrets.AWS_OIDC_DEPLOY_ROLE }}
-          aws-region: ${{ secrets.AWS_REGION }}
-
-      - name: Login to Amazon ECR
-        id: login-ecr
-        uses: aws-actions/amazon-ecr-login@v1
-        with:
-          registries: ${{ secrets.AWS_ECR_REGISTRY_ID }}
-          registry-type: "private"
-
       - name: Docker meta for deploy
         id: meta-deploy
         uses: docker/metadata-action@v4
@@ -49,29 +36,6 @@ jobs:
           images: |
             ghcr.io/raito-io/raito-cli-runner
           flavor: latest=auto
-          tags: |
-            type=ref,event=branch
-            type=ref,event=pr
-            type=semver,pattern={{version}}
-          labels: |
-            org.opencontainers.image.description=RAITO CLI runner
-            org.opencontainers.image.licenses=Apache-2.0
-            org.opencontainers.image.vendor=Raito
-            org.opencontainers.image.documentation=https://docs.raito.io/
-            org.opencontainers.image.source=https://github.com/raito-io/cli-runner
-
-      - name: Docker meta for amazon
-        id: meta-amazon
-        uses: docker/metadata-action@v4
-        env:
-          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-        with:
-          images: |
-            ghcr.io/raito-io/raito-cli-runner
-            ${{ env.ECR_REGISTRY}}/raito/raito-cli
-          flavor: |
-            latest=auto
-            suffix=-amazon,onlatest=true
           tags: |
             type=ref,event=branch
             type=ref,event=pr
@@ -94,6 +58,26 @@ jobs:
           labels: ${{ steps.meta-deploy.outputs.labels }}
           provenance: false
 
+      - name: Docker meta for amazon
+        id: meta-amazon
+        uses: docker/metadata-action@v4
+        with:
+          images: |
+            ghcr.io/raito-io/raito-cli-runner
+          flavor: |
+            latest=auto
+            suffix=-amazon,onlatest=true
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+          labels: |
+            org.opencontainers.image.description=RAITO CLI runner
+            org.opencontainers.image.licenses=Apache-2.0
+            org.opencontainers.image.vendor=Raito
+            org.opencontainers.image.documentation=https://docs.raito.io/
+            org.opencontainers.image.source=https://github.com/raito-io/cli-runner
+
       - name: Build and push amazon
         uses: docker/build-push-action@v4
         with:
@@ -103,4 +87,48 @@ jobs:
           platforms: linux/amd64,linux/arm64
           tags: ${{ steps.meta-amazon.outputs.tags }}
           labels: ${{ steps.meta-amazon.outputs.labels }}
+          provenance: false
+
+      - name: Assume role using OIDC
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          role-to-assume: ${{ secrets.AWS_OIDC_DEPLOY_ROLE }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v1
+        with:
+          registries: ${{ secrets.AWS_ECR_REGISTRY_ID }}
+          registry-type: "private"
+
+      - name: Docker meta for amazon marketplace
+        id: meta-amazon-marketplace
+        uses: docker/metadata-action@v4
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        with:
+          images: |
+            ${{ env.ECR_REGISTRY}}/raito/raito-cli
+          flavor: latest=auto
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+          labels: |
+            org.opencontainers.image.description=RAITO CLI runner
+            org.opencontainers.image.licenses=Apache-2.0
+            org.opencontainers.image.vendor=Raito
+            org.opencontainers.image.documentation=https://docs.raito.io/
+            org.opencontainers.image.source=https://github.com/raito-io/cli-runner
+
+      - name: Build and push amazon marketplace
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          target: amazonlinux
+          push: true
+          platforms: linux/amd64,linux/arm64
+          tags: ${{ steps.meta-amazon-marketplace.outputs.tags }}
+          labels: ${{ steps.meta-amazon-marketplace.outputs.labels }}
           provenance: false
