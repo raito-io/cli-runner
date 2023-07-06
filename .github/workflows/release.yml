@@ -110,7 +110,6 @@ jobs:
         with:
           images: |
             ${{ env.ECR_REGISTRY}}/raito/raito-cli
-          flavor: latest=auto
           tags: |
             type=ref,event=branch
             type=ref,event=pr
