@@ -41,7 +41,7 @@ The following environment variables are used in the default entrypoint:
 
 The default entrypoint of the container is defined as
 ```dockerfile
-ENTRYPOINT /raito-cli-runner run -c "$CLI_CRON" --config-file /config/raito.yml --log-output --sync-at-startup
+ENTRYPOINT /raito-cli-runner run -c "$CLI_CRON" --config-file /config/raito.yml --log-output
 ```
 
 You can override the default entrypoint by using the `--entrypoint` option when execution `docker run`
