@@ -13,9 +13,7 @@ import (
 	"github.com/raito-io/raito-cli-container/github"
 )
 
-func main() {
-	ctx := context.Background()
-
+func start(ctx context.Context) error {
 	err := viper.BindEnv(constants.ENV_UPDATE_CRON)
 	if err != nil {
 		panic(err)
@@ -30,10 +28,17 @@ func main() {
 
 	defer cleanup()
 
-	err = service.Run(ctx)
+	return service.Run(ctx)
+}
+
+func main() {
+	ctx := context.Background()
+
+	err := start(ctx)
 	if err != nil {
 		logrus.Errorf("execution error: %s", err.Error())
 		eError := &exec.ExitError{}
+
 		if errors.As(err, &eError) {
 			exitCode := eError.ExitCode()
 			os.Exit(exitCode)
