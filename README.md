@@ -34,8 +34,8 @@ The following environment variables are used in the default entrypoint:
 | Environment variable              | Description                                                                                       | Default Value |
 |-----------------------------------|---------------------------------------------------------------------------------------------------|---------------|
 | `TZ`                              | Timezone used by the container                                                                    | Etc/UTC       |
-| `CLI_CRON`                        | Cron expression that defines when  to execute a sync                                              | `0 3 * * *`   |
-| `RAITO_CLI_UPDATE_CRON`           | The cronjob definition for when the container needs to check if a newer CLI version is available. | `0 2 * * *`   |
+| `CLI_CRON`                        | Cron expression that defines when  to execute a sync                                              | `0 2 * * *`   |
+| `RAITO_CLI_UPDATE_CRON`           | The cronjob definition for when the container needs to check if a newer CLI version is available. | `0 1 * * *`   |
 | `RAITO_CLI_CONTAINER_STDOUT_FILE` | Output file stdout of the Raito CLI                                                               | `/dev/stdout` |
 | `RAITO_CLI_CONTAINER_STDERR_FILE` | Output file stderr of the Raito CLI                                                               | `/dev/stderr` |
 

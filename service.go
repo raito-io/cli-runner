@@ -101,6 +101,7 @@ func (s *Service) Run(ctx context.Context) error {
 	defer cancel()
 
 	s.waitGroup.Add(1)
+
 	go func() {
 		defer s.waitGroup.Done()
 
@@ -116,9 +117,9 @@ func (s *Service) Run(ctx context.Context) error {
 	}()
 
 	_, err = s.scheduler.AddFunc(s.getCronSpec(), func() {
-		err := s.cliVersionCheck(ctx)
-		if err != nil {
-			logrus.Error(err)
+		err2 := s.cliVersionCheck(ctx)
+		if err2 != nil {
+			logrus.Error(err2)
 		}
 
 		s.logNextUpdateCheck()
@@ -128,6 +129,7 @@ func (s *Service) Run(ctx context.Context) error {
 	}
 
 	s.scheduler.Start()
+
 	defer func() { ctx = s.scheduler.Stop() }()
 
 	s.logNextUpdateCheck()
@@ -243,13 +245,13 @@ func (s *Service) cliVersionCheck(ctx context.Context) error {
 		logrus.Debug("Process is stopped")
 
 		logrus.Debug("Remove previous runner")
+
 		if previousLocation != location {
 			err = os.Remove(previousLocation)
 			if err != nil {
 				return err
 			}
 		}
-
 	} else {
 		logrus.Info("CLI version is up to date")
 	}

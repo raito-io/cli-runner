@@ -25,14 +25,14 @@ WORKDIR /
 RUN mkdir -p /config
 
 ENV TZ=Etc/UTC
-ENV CLI_CRON="0 1 * * *"
-ENV RAITO_CLI_UPDATE_CRON="0 2 * * *"
+ENV CLI_CRON="0 2 * * *"
+ENV RAITO_CLI_UPDATE_CRON="0 1 * * *"
 ENV RAITO_CLI_CONTAINER_STDOUT_FILE="/dev/stdout"
 ENV RAITO_CLI_CONTAINER_STDERR_FILE="/dev/stderr"
 
 COPY --from=build /raito-cli-runner /raito-cli-runner
 
-ENTRYPOINT /raito-cli-runner run -c "$CLI_CRON" --config-file /config/raito.yml --log-output --sync-at-startup
+ENTRYPOINT /raito-cli-runner run -c "$CLI_CRON" --config-file /config/raito.yml --log-output
 
 
 ## Deploy-amazon
@@ -47,12 +47,12 @@ WORKDIR /
 RUN mkdir -p /config
 
 ENV TZ=Etc/UTC
-ENV CLI_CRON="0 1 * * *"
-ENV RAITO_CLI_UPDATE_CRON="0 2 * * *"
+ENV CLI_CRON="0 2 * * *"
+ENV RAITO_CLI_UPDATE_CRON="0 1 * * *"
 ENV RAITO_CLI_CONTAINER_STDOUT_FILE="/dev/stdout"
 ENV RAITO_CLI_CONTAINER_STDERR_FILE="/dev/stderr"
 
 COPY --from=build /raito-cli-runner /raito-cli-runner
 
 ENTRYPOINT []
-CMD /raito-cli-runner run -c "$CLI_CRON" --config-file /config/raito.yml --log-output --sync-at-startup
+CMD /raito-cli-runner run -c "$CLI_CRON" --config-file /config/raito.yml --log-output
