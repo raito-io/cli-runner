@@ -37,9 +37,9 @@ ENTRYPOINT /raito-cli-runner run -f $CLI_FREQUENCY -c $CLI_CRON --config-file /c
 
 
 ## Deploy-amazon
-FROM amazon/aws-cli:2.11.13 as amazonlinux
+FROM amazon/aws-cli:2.15.10 as amazonlinux
 
-LABEL org.opencontainers.image.base.name="amazon/aws-cli:2.11.13"
+LABEL org.opencontainers.image.base.name="amazon/aws-cli:2.15.10"
 
 RUN yum -y install tzdata jq
 
