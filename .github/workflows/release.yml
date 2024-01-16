@@ -14,7 +14,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -90,14 +90,14 @@ jobs:
           provenance: false
 
       - name: Assume role using OIDC
-        uses: aws-actions/configure-aws-credentials@v1
+        uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_OIDC_DEPLOY_ROLE }}
           aws-region: ${{ secrets.AWS_REGION }}
 
       - name: Login to Amazon ECR
         id: login-ecr
-        uses: aws-actions/amazon-ecr-login@v1
+        uses: aws-actions/amazon-ecr-login@v2
         with:
           registries: ${{ secrets.AWS_ECR_REGISTRY_ID }}
           registry-type: "private"
@@ -133,3 +133,52 @@ jobs:
           tags: ${{ steps.meta-amazon-marketplace.outputs.tags }}
           labels: ${{ steps.meta-amazon-marketplace.outputs.labels }}
           provenance: false
+
+      - name: Get AWS Marketplace details
+        run: |
+          aws marketplace-catalog describe-entity --catalog "AWSMarketplace" --entity-id "${{ secrets.AWS_MARKETPLACE_PRODUCT_ID}}" --query 'Details' | jq 'fromjson';
+
+      - name: Add new version to AWS Marketplace
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          VERSION: ${{ steps.meta-amazon-marketplace.outputs.version}}
+
+        run: |
+          DETAILS_JSON='{
+            "Version": {
+              "VersionTitle": "Raito CLI Runner ${{ env.VERSION }}",
+              "ReleaseNotes": "Raito CLI Runner ${{ env.VERSION }}. Please check https://github.com/raito-io/cli-runner for more information"
+            },
+            "DeliveryOptions": [
+              {
+                "DeliveryOptionTitle": "Raito CLI Runner - Docker",
+                "Details": {
+                  "EcrDeliveryOptionDetails": {
+                    "ContainerImages": [
+                      "${{ env.ECR_REGISTRY}}/raito/raito-cli:${{ env.VERSION}}"
+                    ],
+                    "CompatibleServices": [
+                      "ECS", "EKS"
+                    ],
+                    "Description": "Docker container for the Raito CLI Runner.",
+                    "UsageInstructions": "Installation instructions can be found on http://docs.raito.io/docs/cli/installation/docker."
+                  }
+                }
+              }
+            ]
+          }';
+
+          DETAILS_JSON_STRING="$(echo "${DETAILS_JSON}" | jq 'tostring';)";
+
+          aws marketplace-catalog start-change-set \
+          --catalog "AWSMarketplace" \
+          --change-set '[
+            {
+              "ChangeType": "AddDeliveryOptions",
+              "Entity": {
+                "Identifier": "'"${{ secrets.AWS_MARKETPLACE_PRODUCT_ID}}"'",
+                "Type": "ContainerProduct@1.0"
+              },
+              "Details": '"${DETAILS_JSON_STRING}"'
+            }
+          ]';
