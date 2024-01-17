@@ -136,6 +136,11 @@ jobs:
 
       - name: Get AWS Marketplace details
         run: |
+          echo "List all entities in AWS Marketplace"
+          aws marketplace-catalog list-entities --catalog "AWSMarketplace" --entity-type "ContainerProduct"
+
+
+          echo "Get details of our AWS Marketplace Container Product"
           aws marketplace-catalog describe-entity --catalog "AWSMarketplace" --entity-id "${{ secrets.AWS_MARKETPLACE_PRODUCT_ID}}" --query 'Details' | jq 'fromjson';
 
       - name: Add new version to AWS Marketplace
