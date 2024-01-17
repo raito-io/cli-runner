@@ -182,3 +182,5 @@ jobs:
               "Details": '"${DETAILS_JSON_STRING}"'
             }
           ]';
+
+          echo "Please check https://aws.amazon.com/marketplace/management/products/fb4cf4e3-d513-4589-91ec-204549aaf549/overview/requests-log to see if the version is approved"
