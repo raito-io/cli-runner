@@ -90,7 +90,10 @@ func (s *Service) Run(ctx context.Context) error {
 	defer close(s.userSignal)
 	defer close(s.terminated)
 
-	s.healthChecker.MarkLiveness()
+	err := s.healthChecker.MarkLiveness()
+	if err != nil {
+		return err
+	}
 
 	// Start with downloading the latest release
 	version, location, err := s.githubRepo.InstallLatestRelease(ctx, workingdir)
@@ -138,7 +141,10 @@ func (s *Service) Run(ctx context.Context) error {
 
 	s.logNextUpdateCheck()
 
-	s.healthChecker.MarkReadiness()
+	err = s.healthChecker.MarkReadiness()
+	if err != nil {
+		return err
+	}
 
 	s.waitGroup.Wait()
 

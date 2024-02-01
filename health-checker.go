@@ -72,6 +72,7 @@ func (s *HealthChecker) Cleanup() {
 			logrus.Errorf("failed to remove file: %v", err)
 		}
 	}
+
 	if s.readinessFile != nil {
 		err := s.readinessFile.Close()
 		if err != nil {
