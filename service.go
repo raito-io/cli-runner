@@ -25,8 +25,9 @@ const workingdir = "./"
 var signal = syscall.SIGUSR1
 
 type Service struct {
-	githubRepo *github.GithubRepo
-	scheduler  *cron.Cron
+	githubRepo    *github.GithubRepo
+	healthChecker *HealthChecker
+	scheduler     *cron.Cron
 
 	mutex             sync.Mutex
 	cmd               *exec.Cmd
@@ -44,7 +45,7 @@ type Service struct {
 	terminated chan struct{}
 }
 
-func NewService(githubRepo *github.GithubRepo) (*Service, func(), error) {
+func NewService(githubRepo *github.GithubRepo, healthChecker *HealthChecker) (*Service, func(), error) {
 	stdoutFileName := GetEnvString(constants.ENV_STDOUT_FILE, os.Stdout.Name())
 	stderrFileName := GetEnvString(constants.ENV_STDERR_FILE, os.Stderr.Name())
 
@@ -65,8 +66,9 @@ func NewService(githubRepo *github.GithubRepo) (*Service, func(), error) {
 	cleanup = append(cleanup, stderrFileCleanup)
 
 	return &Service{
-			githubRepo: githubRepo,
-			scheduler:  cron.New(),
+			githubRepo:    githubRepo,
+			healthChecker: healthChecker,
+			scheduler:     cron.New(),
 
 			userSignal: make(chan struct{}),
 			terminated: make(chan struct{}, 1),
@@ -87,6 +89,8 @@ func NewService(githubRepo *github.GithubRepo) (*Service, func(), error) {
 func (s *Service) Run(ctx context.Context) error {
 	defer close(s.userSignal)
 	defer close(s.terminated)
+
+	s.healthChecker.MarkLiveness()
 
 	// Start with downloading the latest release
 	version, location, err := s.githubRepo.InstallLatestRelease(ctx, workingdir)
@@ -133,6 +137,8 @@ func (s *Service) Run(ctx context.Context) error {
 	defer func() { ctx = s.scheduler.Stop() }()
 
 	s.logNextUpdateCheck()
+
+	s.healthChecker.MarkReadiness()
 
 	s.waitGroup.Wait()
 

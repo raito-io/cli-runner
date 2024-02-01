@@ -14,19 +14,29 @@ import (
 )
 
 func start(ctx context.Context) error {
+	var cleanups []func()
+
 	err := viper.BindEnv(constants.ENV_UPDATE_CRON)
 	if err != nil {
 		panic(err)
 	}
 
 	githubRepo := github.NewGithubRepo()
+	healthChecker := NewHealthChecker()
+	cleanups = append(cleanups, healthChecker.Cleanup)
 
-	service, cleanup, err := NewService(githubRepo)
+	service, serviceCleanup, err := NewService(githubRepo, healthChecker)
 	if err != nil {
 		panic(err)
 	}
 
-	defer cleanup()
+	cleanups = append(cleanups, serviceCleanup)
+
+	defer func() {
+		for _, f := range cleanups {
+			f()
+		}
+	}()
 
 	return service.Run(ctx)
 }
