@@ -90,11 +90,6 @@ func (s *Service) Run(ctx context.Context) error {
 	defer close(s.userSignal)
 	defer close(s.terminated)
 
-	err := s.healthChecker.MarkLiveness()
-	if err != nil {
-		return err
-	}
-
 	// Start with downloading the latest release
 	version, location, err := s.githubRepo.InstallLatestRelease(ctx, workingdir)
 	if err != nil {
@@ -120,6 +115,8 @@ func (s *Service) Run(ctx context.Context) error {
 			defer s.exitErrorMutex.Unlock()
 
 			s.exitError = runErr
+
+			s.healthChecker.RemoveLivenessMark()
 		}
 	}()
 
@@ -127,6 +124,8 @@ func (s *Service) Run(ctx context.Context) error {
 		err2 := s.cliVersionCheck(ctx)
 		if err2 != nil {
 			logrus.Error(err2)
+
+			s.healthChecker.RemoveLivenessMark()
 		}
 
 		s.logNextUpdateCheck()
@@ -141,7 +140,7 @@ func (s *Service) Run(ctx context.Context) error {
 
 	s.logNextUpdateCheck()
 
-	err = s.healthChecker.MarkReadiness()
+	err = s.healthChecker.MarkLiveness()
 	if err != nil {
 		return err
 	}
@@ -256,9 +255,8 @@ func (s *Service) cliVersionCheck(ctx context.Context) error {
 
 		logrus.Debug("Process is stopped")
 
-		logrus.Debug("Remove previous runner")
-
 		if previousLocation != location {
+			logrus.Debug("Remove previous runner")
 			err = os.Remove(previousLocation)
 			if err != nil {
 				return err

@@ -18,11 +18,9 @@ type HealthChecker struct {
 
 func NewHealthChecker() *HealthChecker {
 	livenessFilePath := GetEnvString(constants.ENV_LIVENESS_FILE, "")
-	readinessFilePath := GetEnvString(constants.ENV_READINESS_FILE, "")
 
 	return &HealthChecker{
-		livenessFilePath:  livenessFilePath,
-		readinessFilePath: readinessFilePath,
+		livenessFilePath: livenessFilePath,
 	}
 }
 
@@ -43,45 +41,26 @@ func (s *HealthChecker) MarkLiveness() error {
 	return nil
 }
 
-func (s *HealthChecker) MarkReadiness() error {
-	if s.readinessFile != nil || s.readinessFilePath == "" {
-		return nil
-	}
-
-	readinessFile, _, err := createOutputFile(s.readinessFilePath)
-	if err != nil {
-		return err
-	}
-
-	logrus.Infof("[Healthchecker] Created readiness file: %s", s.readinessFilePath)
-
-	s.readinessFile = readinessFile
-
-	return nil
-}
-
-func (s *HealthChecker) Cleanup() {
+func (s *HealthChecker) RemoveLivenessMark() error {
 	if s.livenessFile != nil {
 		err := s.livenessFile.Close()
+
 		if err != nil {
 			logrus.Errorf("failed to close file: %v", err)
+			return err
 		}
 
 		err = os.Remove(s.livenessFilePath)
 		if err != nil {
 			logrus.Errorf("failed to remove file: %v", err)
-		}
-	}
-
-	if s.readinessFile != nil {
-		err := s.readinessFile.Close()
-		if err != nil {
-			logrus.Errorf("failed to close file: %v", err)
+			return err
 		}
 
-		err = os.Remove(s.readinessFilePath)
-		if err != nil {
-			logrus.Errorf("failed to remove file: %v", err)
-		}
+		s.livenessFile = nil
 	}
+	return nil
+}
+
+func (s *HealthChecker) Cleanup() {
+	s.RemoveLivenessMark()
 }
