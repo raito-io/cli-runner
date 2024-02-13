@@ -28,8 +28,9 @@ type Service struct {
 	githubRepo *github.GithubRepo
 	scheduler  *cron.Cron
 
-	mutex             sync.Mutex
-	cmd               *exec.Cmd
+	mutex sync.Mutex
+	cmd   *exec.Cmd
+
 	version           *semver.Version
 	executionLocation string
 
@@ -89,7 +90,7 @@ func (s *Service) Run(ctx context.Context) error {
 	defer close(s.terminated)
 
 	// Start with downloading the latest release
-	version, location, err := s.githubRepo.InstallLatestRelease(ctx, workingdir)
+	fixedVersion, version, location, err := s.installCliVersion(ctx)
 	if err != nil {
 		return err
 	}
@@ -116,23 +117,27 @@ func (s *Service) Run(ctx context.Context) error {
 		}
 	}()
 
-	_, err = s.scheduler.AddFunc(s.getCronSpec(), func() {
-		err2 := s.cliVersionCheck(ctx)
-		if err2 != nil {
-			logrus.Error(err2)
+	if !fixedVersion {
+		_, err = s.scheduler.AddFunc(s.getCronSpec(), func() {
+			err2 := s.cliVersionCheck(ctx)
+			if err2 != nil {
+				logrus.Error(err2)
+			}
+
+			s.logNextUpdateCheck()
+		})
+		if err != nil {
+			return fmt.Errorf("schedule update: %w", err)
 		}
 
+		s.scheduler.Start()
+
+		defer func() { ctx = s.scheduler.Stop() }()
+
 		s.logNextUpdateCheck()
-	})
-	if err != nil {
-		return fmt.Errorf("schedule update: %w", err)
+	} else {
+		logrus.Info("A specific version of Raito CLI is being used, so no update check will be scheduled")
 	}
-
-	s.scheduler.Start()
-
-	defer func() { ctx = s.scheduler.Stop() }()
-
-	s.logNextUpdateCheck()
 
 	s.waitGroup.Wait()
 
@@ -140,6 +145,32 @@ func (s *Service) Run(ctx context.Context) error {
 	defer s.exitErrorMutex.Unlock()
 
 	return s.exitError
+}
+
+func (s *Service) installCliVersion(ctx context.Context) (bool, *semver.Version, string, error) {
+	specificCliVersion := GetEnvString(constants.ENV_RAITO_CLI_VERSION, "")
+
+	if specificCliVersion != "" {
+		version, err := semver.NewVersion(specificCliVersion)
+		if err != nil {
+			logrus.Errorf("specified CLI version not in expected format: %v", err)
+			return false, nil, "", err
+		}
+
+		logrus.Infof("Installing a fixed version of Raito CLI --> %s", version.String())
+
+		// Start with downloading the latest release
+		version, location, err := s.githubRepo.InstallSpecificRelease(ctx, version, workingdir)
+		if err != nil {
+			return false, version, location, err
+		}
+
+		return true, version, location, nil
+	}
+
+	version, location, err := s.githubRepo.InstallLatestRelease(ctx, workingdir)
+
+	return false, version, location, err
 }
 
 func (s *Service) getCronSpec() string {
