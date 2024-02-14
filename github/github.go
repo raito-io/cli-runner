@@ -53,6 +53,23 @@ func (g *GithubRepo) InstallLatestRelease(ctx context.Context, dir string) (*sem
 		return nil, "", fmt.Errorf("get latest version: %w", err)
 	}
 
+	return g.installRelease(release, dir)
+}
+
+func (g *GithubRepo) InstallSpecificRelease(ctx context.Context, version *semver.Version, dir string) (*semver.Version, string, error) {
+	release, _, err := g.client.Repositories.GetReleaseByTag(ctx, RAITO_CLI_REPOSITORY_OWNER, RAITO_CLI_REPOSITORY_NAME, version.Original())
+	if err != nil {
+		return nil, "", fmt.Errorf("get specific version: %w", err)
+	}
+
+	return g.installRelease(release, dir)
+}
+
+func (g *GithubRepo) installRelease(release *github.RepositoryRelease, dir string) (*semver.Version, string, error) {
+	if release == nil {
+		return nil, dir, errors.New("no release provided")
+	}
+
 	version, err := semver.NewVersion(release.GetTagName())
 	if err != nil {
 		return nil, "", err
