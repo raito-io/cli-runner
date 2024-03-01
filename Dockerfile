@@ -29,6 +29,7 @@ ENV CLI_CRON="0 2 * * *"
 ENV RAITO_CLI_UPDATE_CRON="0 1 * * *"
 ENV RAITO_CLI_CONTAINER_STDOUT_FILE="/dev/stdout"
 ENV RAITO_CLI_CONTAINER_STDERR_FILE="/dev/stderr"
+ENV RAITO_CLI_CONTAINER_LIVENESS_FILE="/tmp/liveness_file.lock"
 
 COPY --from=build /raito-cli-runner /raito-cli-runner
 
@@ -51,6 +52,7 @@ ENV CLI_CRON="0 2 * * *"
 ENV RAITO_CLI_UPDATE_CRON="0 1 * * *"
 ENV RAITO_CLI_CONTAINER_STDOUT_FILE="/dev/stdout"
 ENV RAITO_CLI_CONTAINER_STDERR_FILE="/dev/stderr"
+ENV RAITO_CLI_CONTAINER_LIVENESS_FILE="/tmp/liveness_file.lock"
 
 COPY --from=build /raito-cli-runner /raito-cli-runner
 
