@@ -20,7 +20,7 @@ LABEL org.opencontainers.image.base.name="alpine:3"
 
 RUN apk add --no-cache tzdata
 
-WORKDIR /
+WORKDIR /app
 
 RUN mkdir -p /config
 
@@ -30,7 +30,13 @@ ENV RAITO_CLI_UPDATE_CRON="0 1 * * *"
 ENV RAITO_CLI_CONTAINER_STDOUT_FILE="/dev/stdout"
 ENV RAITO_CLI_CONTAINER_STDERR_FILE="/dev/stderr"
 
+RUN addgroup -S raito && adduser -D -S -G raito --no-create-home raito && chmod +w /tmp
+RUN chown raito:raito /app /config
+
 COPY --from=build /raito-cli-runner /raito-cli-runner
+RUN chown raito:raito /raito-cli-runner
+
+USER raito
 
 ENTRYPOINT /raito-cli-runner run -c "$CLI_CRON" --config-file /config/raito.yml --log-output
 
@@ -40,9 +46,9 @@ FROM amazon/aws-cli:2.15.10 as amazonlinux
 
 LABEL org.opencontainers.image.base.name="amazon/aws-cli:2.15.10"
 
-RUN yum -y install tzdata jq
+RUN yum -y install tzdata jq shadow-utils
 
-WORKDIR /
+WORKDIR /app
 
 RUN mkdir -p /config
 
@@ -52,7 +58,13 @@ ENV RAITO_CLI_UPDATE_CRON="0 1 * * *"
 ENV RAITO_CLI_CONTAINER_STDOUT_FILE="/dev/stdout"
 ENV RAITO_CLI_CONTAINER_STDERR_FILE="/dev/stderr"
 
+RUN groupadd -r raito && useradd -r -g raito raito
+RUN chown raito:raito /app /config
+
 COPY --from=build /raito-cli-runner /raito-cli-runner
+
+RUN chown raito:raito /raito-cli-runner
+USER raito
 
 ENTRYPOINT []
 CMD /raito-cli-runner run -c "$CLI_CRON" --config-file /config/raito.yml --log-output
