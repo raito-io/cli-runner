@@ -117,7 +117,7 @@ func (s *Service) Run(ctx context.Context) error {
 		}
 	}()
 
-	if !fixedVersion {
+	if !fixedVersion && viper.IsSet(constants.ENV_UPDATE_CRON) {
 		_, err = s.scheduler.AddFunc(s.getCronSpec(), func() {
 			err2 := s.cliVersionCheck(ctx)
 			if err2 != nil {
@@ -135,8 +135,10 @@ func (s *Service) Run(ctx context.Context) error {
 		defer func() { ctx = s.scheduler.Stop() }()
 
 		s.logNextUpdateCheck()
-	} else {
+	} else if fixedVersion {
 		logrus.Info("A specific version of Raito CLI is being used, so no update check will be scheduled")
+	} else {
+		logrus.Info("No CLI version update cron defined, so no update check will be scheduled")
 	}
 
 	s.waitGroup.Wait()
