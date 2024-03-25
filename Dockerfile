@@ -11,7 +11,7 @@ COPY *.go ./
 ADD constants /app/constants
 ADD github /app/github
 
-RUN go build -o /raito-cli-runner
+RUN go build -o raito-cli-runner
 
 ## Deploy
 FROM alpine:3 as deploy
