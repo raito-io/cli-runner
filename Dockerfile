@@ -1,5 +1,5 @@
 ## Build
-FROM golang:1.21-alpine AS build
+FROM golang:1.22-alpine AS build
 
 WORKDIR /app
 
@@ -27,12 +27,15 @@ ENV CLI_CRON="0 2 * * *"
 ENV RAITO_CLI_UPDATE_CRON="0 1 * * *"
 ENV RAITO_CLI_CONTAINER_STDOUT_FILE="/dev/stdout"
 ENV RAITO_CLI_CONTAINER_STDERR_FILE="/dev/stderr"
+ENV RAITO_CLI_WORKING_DIR="/home/raito/"
 
 RUN addgroup -S raito && adduser -D -S -G raito raito && chmod +w /tmp
+
 RUN chown raito:raito /config
 
 COPY --from=build /app/raito-cli-runner /raito-cli-runner
 RUN chown raito:raito /raito-cli-runner
+
 
 USER raito
 
@@ -53,13 +56,15 @@ ENV CLI_CRON="0 2 * * *"
 ENV RAITO_CLI_UPDATE_CRON="0 1 * * *"
 ENV RAITO_CLI_CONTAINER_STDOUT_FILE="/dev/stdout"
 ENV RAITO_CLI_CONTAINER_STDERR_FILE="/dev/stderr"
+ENV RAITO_CLI_WORKING_DIR="/home/raito/"
 
-RUN groupadd -r raito && useradd -r -g raito raito
+RUN groupadd -r raito && useradd -d /home/raito -g raito raito
+
 RUN chown raito:raito /config
 
 COPY --from=build /app/raito-cli-runner /raito-cli-runner
-
 RUN chown raito:raito /raito-cli-runner
+
 USER raito
 
 ENTRYPOINT []

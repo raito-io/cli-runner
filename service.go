@@ -20,8 +20,6 @@ import (
 	"github.com/raito-io/raito-cli-container/github"
 )
 
-const workingdir = "./"
-
 var signal = syscall.SIGUSR1
 
 type Service struct {
@@ -33,6 +31,7 @@ type Service struct {
 
 	version           *semver.Version
 	executionLocation string
+	workingDir        string
 
 	stdoutWriter io.Writer
 	stderrWriter io.Writer
@@ -48,6 +47,7 @@ type Service struct {
 func NewService(githubRepo *github.GithubRepo) (*Service, func(), error) {
 	stdoutFileName := GetEnvString(constants.ENV_STDOUT_FILE, os.Stdout.Name())
 	stderrFileName := GetEnvString(constants.ENV_STDERR_FILE, os.Stderr.Name())
+	workingDir := GetEnvString(constants.ENV_WORKING_DIR, "./")
 
 	var cleanup []func() error
 
@@ -74,6 +74,8 @@ func NewService(githubRepo *github.GithubRepo) (*Service, func(), error) {
 
 			stdoutWriter: stdoutFile,
 			stderrWriter: stderrFile,
+
+			workingDir: workingDir,
 		}, func() {
 			for _, f := range cleanup {
 				err := f()
@@ -162,7 +164,7 @@ func (s *Service) installCliVersion(ctx context.Context) (bool, *semver.Version,
 		logrus.Infof("Installing a fixed version of Raito CLI --> %s", version.String())
 
 		// Start with downloading the latest release
-		version, location, err := s.githubRepo.InstallSpecificRelease(ctx, version, workingdir)
+		version, location, err := s.githubRepo.InstallSpecificRelease(ctx, version, s.workingDir)
 		if err != nil {
 			return false, version, location, err
 		}
@@ -170,7 +172,7 @@ func (s *Service) installCliVersion(ctx context.Context) (bool, *semver.Version,
 		return true, version, location, nil
 	}
 
-	version, location, err := s.githubRepo.InstallLatestRelease(ctx, workingdir)
+	version, location, err := s.githubRepo.InstallLatestRelease(ctx, s.workingDir)
 
 	return false, version, location, err
 }
@@ -257,7 +259,7 @@ func (s *Service) cliVersionCheck(ctx context.Context) error {
 	if latestVersion.GreaterThan(s.version) {
 		logrus.Infof("Found new CLI version %s", latestVersion.String())
 
-		version, location, err := s.githubRepo.InstallLatestRelease(ctx, workingdir)
+		version, location, err := s.githubRepo.InstallLatestRelease(ctx, s.workingDir)
 		if err != nil {
 			logrus.Errorf("Failed to install latest release: %v", err)
 
