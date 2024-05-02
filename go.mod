@@ -2,6 +2,8 @@ module github.com/raito-io/raito-cli-container
 
 go 1.22
 
+toolchain go1.22.0
+
 require (
 	github.com/Masterminds/semver/v3 v3.2.1
 	github.com/google/go-github/v56 v56.0.0
